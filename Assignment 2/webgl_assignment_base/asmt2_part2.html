@@ -1,0 +1,296 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>Assignment #2, Part 2 - Static Plotting in WebGL</title>
+	<script type="text/javascript" src="scripts/utils.js"></script>
+	<script type="text/javascript" src="scripts/simple-matrix.js"></script>
+	<script id='vshader' type='x-shader'>
+	   // TODO:  Write the vertex shader
+	   attribute vec3 position;
+	   attribute vec4 colour;
+	   varying vec4 vColour;
+	   uniform float time;
+	   void main() {
+			vColour = colour;
+			gl_Position = vec4(position, 1.0);
+		}
+		
+	</script>
+	<script id='fshader' type='x-shader'>
+	   precision mediump float;
+	   varying vec4 vColour;
+	   void main() {
+			gl_FragColor = vColour;
+	   }
+	</script>
+  </head>
+  <body>
+    <canvas id="canvas" width="400" height="400"></canvas><br />
+    
+	X:<br />
+	Min: <input id="xAxisMin" type="number" style="width: 100px" value="-5" />
+	Max: <input id="xAxisMax" type="number" style="width: 100px" value="5" />
+	Step: <input id="xAxisStep" type="number" style="width: 100px" value="0.1" />
+	<br />
+
+	Y:<br />
+	Min: <input id="yAxisMin" type="number" style="width: 100px" value="-5" />
+	Max: <input id="yAxisMax" type="number" style="width: 100px" value="5" />
+	Step: <input id="yAxisStep" type="number" style="width: 100px" value="0.1" />
+	<br />
+	
+	Point size:
+	<input id="pointScale" type="range" min="0" max="100" value="10" />
+	<br />
+
+	Rotate:
+	<input id="rotate" type="checkbox" />
+	<br />
+
+    <script type="text/javascript">
+      var xAxisMin = -5.0;
+      var xAxisMax = +5.0;
+	  var xAxisStep = 0.1;
+
+      var yAxisMin = -5.0;
+      var yAxisMax = +5.0;
+	  var yAxisStep = 0.1;
+
+      var pointScale = 0.1;
+	  
+	  var rotate = false;
+	  
+	  var canvas = document.getElementById('canvas');
+	  var gl = canvas.getContext('experimental-webgl');
+	
+	  	  
+	  document.getElementById("xAxisMin").onchange = function() { 
+         xAxisMin = parseFloat(document.getElementById('xAxisMin').value);
+		 reset();
+      };
+	  
+	  document.getElementById("xAxisMax").onchange = function() { 
+         xAxisMax = parseFloat(document.getElementById('xAxisMax').value);
+		 reset();
+      };
+	  
+	  document.getElementById("xAxisStep").onchange = function() { 
+         xAxisStep = parseFloat(document.getElementById('xAxisStep').value);
+		 reset();
+      };
+	  	  	  
+	  document.getElementById("yAxisMin").onchange = function() { 
+         yAxisMin = parseFloat(document.getElementById('yAxisMin').value);
+		 reset();
+      };
+	  
+	  document.getElementById("yAxisMax").onchange = function() { 
+         yAxisMax = parseFloat(document.getElementById('yAxisMax').value);
+		 reset();
+      };
+	  
+	  document.getElementById("yAxisStep").onchange = function() { 
+         yAxisStep = parseFloat(document.getElementById('yAxisStep').value);
+		 reset();
+      };
+	  	  	  
+	  document.getElementById("pointScale").onchange = function() { 
+         pointScale = parseInt(document.getElementById('pointScale').value) / 100.0;
+		 reset();
+      };
+	  
+  	  document.getElementById("rotate").onclick = function() {
+         rotate = document.getElementById('rotate').checked;
+      };
+	  
+	
+	var vBuffer = gl.createBuffer();
+	var cBuffer = gl.createBuffer();
+	
+	/*
+	var vshader = document.getElementById('vshader').textContent;
+	var fshader = document.getElementById('fshader').textContent;
+	
+	var program = createProgram(vshader, fshader);
+	gl.useProgram(program);
+	
+	var positionLocation = gl.getAttribLocation(program, "position");
+	var colorLocation = gl.getAttribLocation(program, "colour");
+	*/
+	var numVertices = 0;
+	
+	var vertices = [];
+	var colors = [];
+
+	  
+	setup();
+	reset();
+	render();
+	  
+	  function setup() {
+	     // TODO:  Write the code to initialize WebGL
+		 gl.enable(gl.DEPTH_TEST);
+		 //gl.clearColor(0.50, 0.50, 0.25, 1.0);
+		 gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+	  }
+	  
+	  function calculateZ(x, y) {
+		return Math.cos(Math.sqrt(x*x + y*y));
+	  }
+
+	  function reset() {
+	     // TODO:  Write the code to generate the vertex geometry
+		var triangle = [
+			pointScale* -0.5, pointScale * -0.5, pointScale * 0.0,
+			pointScale * 0.5, pointScale * -0.5, pointScale * 0.0,
+			pointScale * 0.0, pointScale * 0.5, pointScale * 0.0
+		];
+		 
+		var xcounter = xAxisMin;
+		var ycounter = yAxisMin;
+		
+		var tri_counter = 0;
+	
+		var xHold = [];
+		var yHold = [];
+		var zHold = [];
+		var vertices = [];
+	
+		while(xcounter < xAxisMax){
+			if(tri_counter == 0){
+				xHold.push(pointScale*(-0.5) + xcounter);
+				tri_counter++;
+			}
+			if(tri_counter == 1){
+				xHold.push(pointScale*(0.5) + xcounter);
+				tri_counter++;
+			}
+			if(tri_counter == 2){
+				xHold.push(pointScale*(0.0) + xcounter);
+				tri_counter = 0;
+			}
+			
+			//xHold.push(xcounter);
+			xcounter += xAxisStep;
+		}
+		tri_counter = 0;
+
+		while(ycounter < yAxisMax){
+			if(tri_counter == 0){
+				yHold.push(pointScale*(-0.5) + ycounter);
+			}
+			if(tri_counter == 1){
+				yHold.push(pointScale*(-0.5) + ycounter);
+			}
+			if(tri_counter == 2){
+				yHold.push(pointScale*(0.5) + ycounter);
+			}
+		
+			//yHold.push(ycounter);
+			ycounter += yAxisStep;
+		}
+	
+		var tri_counter = 0;
+		
+		for(i = 0; i < xHold.length; i++){
+			zHold.push(calculateZ(xHold[i], yHold[i]));
+			/*
+			if(tri_counter == 0){
+				vertices.push(xHold[i] + -0.5, yHold[i] + -0.5, zHold[i]);
+				tri_counter++;
+			}
+			
+			if(tri_counter == 1){
+				vertices.push(xHold[i] + 0.5, yHold[i] + -0.5, zHold[i]);
+				tri_counter++;
+			}
+			
+			if(tri_counter == 2){
+				vertices.push(xHold[i], yHold[i] + 0.5, zHold[i]);
+				tri_counter = 0;
+			}*/
+			vertices.push(xHold[i], yHold[i], zHold[i], 1.0);
+		}
+		
+		console.log(vertices);
+		 
+		
+		 
+		 
+		for(i = 0; i < vertices.length/4; i++){
+			colors.push((zHold[i]/2.0)+0.5, 0.0, (zHold[i]/-2.0)+0.5, 1.0);
+		}
+		console.log(vertices.length/4);
+		console.log(colors.length/4);
+		numVertices = vertices.length/4;
+		
+		
+		/*vertices = [
+			//vec3(-0.5, -0.5, calculateZ(-0.5, -0.5)),
+			-0.5, -0.5, 0.0,
+			0.5, -0.5, 0.0,
+			0.0, 0.5, 0.0
+		 ];
+		 
+		 
+		  
+		colors = [
+	 (calculateZ(-0.5, -0.5)/2.0)+0.5, 0.0, (calculateZ(-0.5, -0.5) / -2.0)+0.5, 1.0,
+	 (calculateZ(0.5, -0.5)/2.0)+0.5, 0.0, (calculateZ(0.5,-0.5)/-2.0)+0.5, 1.0,
+	 (calculateZ(0.0, 0.5)/2.0)+0.5, 0.0, (calculateZ(0.0, 0.5)/-2.0)+0.5, 1.0 
+		 ];*/
+
+		vBuffer.itemSize = 4;
+		vBuffer.numItems = vertices.length/4;
+		cBuffer.itemSize = 4;
+		cBuffer.numItems = colors.length/4;
+
+
+
+
+	  }
+
+	  function render() {
+	     // TODO:  Write the code to draw the triangles
+		gl.clearColor(0.25, 0.25, 0.25, 1.0);
+		gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+
+
+		var vshader = document.getElementById('vshader').textContent;
+		var fshader = document.getElementById('fshader').textContent;
+
+		//gl.drawArrays(gl.LINE_STRIP, 0, 3);
+		var program = createProgram(vshader,fshader);
+        gl.useProgram(program);
+
+        var positionLocation = gl.getAttribLocation(program, "position");
+		var colorLocation = gl.getAttribLocation(program, "colour");
+
+
+        gl.bindBuffer(gl.ARRAY_BUFFER, vBuffer);
+		gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(vertices), gl.STATIC_DRAW);
+		gl.vertexAttribPointer(positionLocation, 4, gl.FLOAT, false, 0, 0);
+		gl.enableVertexAttribArray(positionLocation);
+
+
+		gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, cBuffer);
+		gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, new Float32Array(colors), gl.STATIC_DRAW);
+
+		gl.vertexAttribPointer(colorLocation, 4, gl.UNSIGNED_BYTE, true, 0, 0);
+		gl.enableVertexAttribArray(colorLocation);
+
+
+		gl.drawArrays(gl.TRIANGLES, 0, 3);
+
+
+		requestAnimationFrame(render);
+		//setMatrixUniforms();
+		
+		if(rotate){
+		
+		}
+      }
+
+    </script>
+  </body>
+</html>
